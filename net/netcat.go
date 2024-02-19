@@ -19,7 +19,7 @@ var (
 // EScribir -> host:port
 // leer ->  host:port
 
-func mian() {
+func main() {
 	flag.Parse()
 	//Creando - generando conexión
 	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", *host, *port))

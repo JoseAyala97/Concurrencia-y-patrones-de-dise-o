@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"log"
 	"net"
 )
 
@@ -31,7 +32,7 @@ func HandleConnection(conn net.Conn) {
 
 	message := make(chan string)
 	go MessageWrite(conn, message)
-	//Cliente1:2560
+	//clientName := conn.RemoteAddr().String() example: Cliente1:2560
 	clientName := conn.RemoteAddr().String()
 
 	message <- fmt.Sprintf("Welcome to the server, your name %s\n", clientName)
@@ -51,5 +52,45 @@ func HandleConnection(conn net.Conn) {
 func MessageWrite(conn net.Conn, messages <-chan string) {
 	for messsage := range messages {
 		fmt.Fprintln(conn, messsage)
+	}
+}
+
+func Broadcast() {
+	//cuantos clientes tenemos conectados
+	clients := make(map[Client]bool)
+	for {
+		// multiplexacion de canales
+		select {
+		//caso en el que se recibe un mensaje
+		case message := <-messages:
+			// se itera sobre los clientes
+			for client := range clients {
+				//notificara que el mensaje llego
+				client <- message
+			}
+		// anadimos el nuevo cleinte
+		case newClient := <-incomingClient:
+			clients[newClient] = true
+		case leavingClient := <-leavingClient:
+			delete(clients, leavingClient)
+			//cerrar el canal porque cliente ha abandonado el canal
+			close(leavingClient)
+		}
+	}
+}
+
+func main() {
+	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", *host, *port))
+	if err != nil {
+		log.Fatal(err)
+	}
+	go Broadcast()
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			log.Print(err)
+			continue
+		}
+		go HandleConnection(conn)
 	}
 }
